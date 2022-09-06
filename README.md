@@ -4,6 +4,12 @@ Piano App is a virtual piano site that you can use to play songs with many diffe
 
 https://user-images.githubusercontent.com/69170322/188328173-81503279-f8bd-41fe-baad-9a5216006caf.mp4
 
+# This Fork
+
+Planned additions:
+- Refactor on globals thing, maybe use zustand to manage the state?
+- Piano files editor
+
 ## Table of Contents
 
 - [More About '.piano' Files](#more-about-piano-files)

@@ -1,8 +1,5 @@
 import { playNote } from "../../utils/audioHandler";
-import {
-  addRecordedNoteGlobal,
-  isRecordingSongGlobal,
-} from "../../utils/globals";
+import { useGlobalStore } from "../../utils/globals";
 import styles from "./BlackKey.module.css";
 
 type BlackKeyProps = {
@@ -11,14 +8,16 @@ type BlackKeyProps = {
 };
 
 function BlackKey(props: BlackKeyProps) {
+  const { isSustainOn, isRecording, addRecordedNoteGlobal } = useGlobalStore();
+
   return (
     <div
       className={`${styles.key} blackKey`}
       id={props.note}
       onMouseDown={(event) => {
         if (!event.shiftKey) {
-          playNote(props.note);
-          if (isRecordingSongGlobal()) {
+          playNote(props.note, isSustainOn);
+          if (isRecording) {
             addRecordedNoteGlobal(props.note);
           }
         }

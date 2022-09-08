@@ -12,27 +12,24 @@ import {
   instrumentsList,
 } from "../../utils/audioHandler";
 import { InstrumentName } from "soundfont-player";
-import {
-  getGlobalInstrument,
-  getGlobalSampleName,
-  getGlobalSongNotes,
-  setGlobalInstrument,
-  setGlobalSampleName,
-  setGlobalSongNotes,
-  setLastPlayedLineGlobal,
-  setSongPausedGlobal,
-} from "../../utils/globals";
 import samples from "../../assets/samples-as-code/samples";
-import Controls, { updatePlayPauseButton } from "../Controls/Controls";
+import Controls from "../Controls/Controls";
+import { useGlobalStore } from "../../utils/globals";
 
 function App() {
+  const { globalInstrument, globalSampleName, globalSongNotes, setGlobalInstrument, setGlobalSampleName, setGlobalSongNotes, setLastPlayedLineGlobal, setSongPausedGlobal, addRecordedNoteGlobal } = useGlobalStore();
+
   const UPLOAD_FILE_INPUT_ID = "fileUpload";
   const [songName, setSongName] = useState("");
   const playSong = async (songNotes: string) => {
     if (!songName || !songNotes) {
       return;
     }
+    // TODO: create and use player from store
     const interpreter = new PianoInterpreter(songNotes);
+    interpreter.onAddRecordedNote = addRecordedNoteGlobal;
+    interpreter.onLastPlayedLineChange = setLastPlayedLineGlobal;
+    interpreter.onLastSongSpeedChange = setLastPlayedLineGlobal;
     try {
       await interpreter.play();
     } catch (error: any) {
@@ -72,7 +69,7 @@ function App() {
               options={instrumentsList}
               inputId="instrumentsInput"
               datalistId="instrumentsList"
-              initialValue={getGlobalInstrument()}
+              initialValue={globalInstrument}
               onChange={async (instrumentName) => {
                 setGlobalInstrument(instrumentName);
                 await changeInstrument(instrumentName);
@@ -95,7 +92,7 @@ function App() {
               options={samplesList}
               inputId="samplesInput"
               datalistId="samplesList"
-              initialValue={getGlobalSampleName()}
+              initialValue={globalSampleName}
               onChange={(sampleName) => {
                 const notes = samples.get(sampleName);
                 if (notes) {
@@ -123,8 +120,7 @@ function App() {
             <MenuButton
               onClick={async () => {
                 setSongPausedGlobal(false);
-                updatePlayPauseButton();
-                await playSong(getGlobalSongNotes());
+                await playSong(globalSongNotes);
               }}
               disabled={!songName}
             >

@@ -1,92 +1,54 @@
 import React from "react";
 import { PianoInterpreter } from "../../utils/fileInterpreter";
-import {
-  clearRecordedNotesGlobal,
-  getGlobalSongNotes,
-  getLastPlayedLineGlobal,
-  getLastSongSpeedGlobal,
-  getRecordedNotesGlobal,
-  isRecordingSongGlobal,
-  isSongPausedGlobal,
-  setRecordingSongGlobal,
-  setSongPausedGlobal,
-} from "../../utils/globals";
+import { useGlobalStore } from "../../utils/globals";
 import styles from "./Controls.module.css";
 
-const playPauseRef = React.createRef<HTMLDivElement>();
-export function updatePlayPauseButton() {
-  if (playPauseRef.current) {
-    if (isSongPausedGlobal()) {
-      playPauseRef.current.classList.remove(styles.playing);
-      playPauseRef.current.classList.add(styles.paused);
-    } else {
-      playPauseRef.current.classList.remove(styles.paused);
-      playPauseRef.current.classList.add(styles.playing);
-    }
-  }
-}
-const recordingRef = React.createRef<HTMLDivElement>();
-export function updateRecordingButton() {
-  if (recordingRef.current) {
-    if (isRecordingSongGlobal()) {
-      recordingRef.current.classList.add(styles.recording);
-    } else {
-      recordingRef.current.classList.remove(styles.recording);
-    }
-  }
-}
-
-async function continueSong() {
-  const songNotes = getGlobalSongNotes();
-  const lastPlayedLine = getLastPlayedLineGlobal();
-  const lastSongSpeed = getLastSongSpeedGlobal();
-  if (songNotes.length > 0 && lastPlayedLine < songNotes.length) {
-    const interpreter = new PianoInterpreter(songNotes, lastSongSpeed);
-    await interpreter.play(lastPlayedLine, true);
-  }
-}
-
-function writeNotesToFile() {
-  const notes = getRecordedNotesGlobal();
-  const fileName = `recording-${new Date().toLocaleDateString()}.piano`;
-  if (notes.length > 0) {
-    const file = new File([notes.join("\n")], fileName, { type: "text/plain" });
-    const url = URL.createObjectURL(file);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    clearRecordedNotesGlobal();
-  }
-}
-
 function Controls() {
+  const { isPaused, isRecording, globalSongNotes, lastPlayedLine, lastSongSpeed, recordedNotes, setSongPausedGlobal, setRecordingSongGlobal, clearRecordedNotesGlobal, addRecordedNoteGlobal, setLastPlayedLineGlobal, setLastSongSpeedGlobal } = useGlobalStore();
+
+  const continueSong = async () => {
+    if (globalSongNotes.length > 0 && lastPlayedLine < globalSongNotes.length) {
+      // TODO: create and use player from store
+      const interpreter = new PianoInterpreter(globalSongNotes, lastSongSpeed);
+      interpreter.onAddRecordedNote = addRecordedNoteGlobal;
+      interpreter.onLastPlayedLineChange = setLastPlayedLineGlobal;
+      interpreter.onLastSongSpeedChange = setLastPlayedLineGlobal;
+      await interpreter.play(lastPlayedLine, true);
+    }
+  }
+  
+  function writeNotesToFile() {
+    const fileName = `recording-${new Date().toLocaleDateString()}.piano`;
+    if (recordedNotes.length > 0) {
+      const file = new File([recordedNotes.join("\n")], fileName, { type: "text/plain" });
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      clearRecordedNotesGlobal();
+    }
+  }
+  
   let paused = false;
-  let recording = false;
   return (
     <div className={styles.box}>
       <span className={styles.text}>Controls</span>
       <div className={styles.actions}>
         <div
-          className={styles.playPause}
-          ref={playPauseRef}
+          className={`${styles.playPause} ${isPaused ? styles.paused : styles.playing}`}
           onClick={async () => {
             setSongPausedGlobal(!paused);
-            paused = !paused;
-            updatePlayPauseButton();
-            if (!paused) {
+            if (!isPaused) {
               await continueSong();
             }
           }}
         ></div>
         <div
-          className={styles.record}
-          ref={recordingRef}
+          className={`${styles.record} ${isRecording && styles.recording}`}
           onClick={() => {
-            setRecordingSongGlobal(!recording);
-            recording = !recording;
-            updateRecordingButton();
-            if (!recording) {
+            setRecordingSongGlobal(!isRecording);
+            if (!isRecording) {
               writeNotesToFile();
             }
           }}

@@ -1,6 +1,5 @@
 import React from "react";
 import { useEffect } from "react";
-import { setGlobalInstrument } from "../../utils/globals";
 import styles from "./MenuSelect.module.css";
 
 type MenuSelectProps = {

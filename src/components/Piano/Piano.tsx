@@ -1,74 +1,90 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import BlackKey from "../BlackKey/BlackKey";
 import WhiteKey from "../WhiteKey/WhiteKey";
 import styles from "./Piano.module.css";
 import { getKeyByNote, getNoteByKey } from "../../utils/keyMapping";
 import { playNote } from "../../utils/audioHandler";
-import {
-  addRecordedNoteGlobal,
-  isRecordingSongGlobal,
-  toggleSustainGlobal,
-} from "../../utils/globals";
+import { useGlobalStore } from "../../utils/globals";
 
-/* 
-    Draggable Piano Logic - Start
-*/
 interface DragInfo {
   scrollLeft: number;
   mouseX: number;
 }
-const pianoRef = React.createRef<HTMLDivElement>();
-const dragInfo: DragInfo = {
-  scrollLeft: 0,
-  mouseX: 0,
-};
-function mouseDownHandler(event: any) {
-  if (event.shiftKey) {
-    if (pianoRef.current) {
-      dragInfo.scrollLeft = pianoRef.current.scrollLeft;
-      pianoRef.current.style.cursor = "grabbing";
-    }
-    dragInfo.mouseX = event.clientX;
-    window.addEventListener("mousemove", mouseMoveHandler);
-    window.addEventListener("mouseup", mouseUpHandler);
-  }
-}
-function mouseMoveHandler(event: any) {
-  if (event.shiftKey) {
-    const distanceX = event.clientX - dragInfo.mouseX;
-    if (pianoRef.current) {
-      pianoRef.current.scrollLeft = dragInfo.scrollLeft - distanceX;
-    }
-  }
-}
-function mouseUpHandler() {
-  if (pianoRef.current) {
-    pianoRef.current.style.cursor = "grab";
-  }
-  window.removeEventListener("mousemove", mouseMoveHandler);
-  window.removeEventListener("mouseup", mouseUpHandler);
-}
-/* 
-    Draggable Piano Logic - End
-*/
 
-/*
-    Play Notes on Key Presses Logic - Start
-*/
-const keyDownMap = new Map<string, boolean>();
-const noteElements = new Map<string, HTMLElement>();
-const simulateKeyDown = (event: KeyboardEvent) => {
-  if (event.key === "Enter") {
-    toggleSustainGlobal();
-    return;
-  }
-  const note = getNoteByKey(event.key);
-  if (note) {
-    if (!keyDownMap.get(note)) {
-      if (isRecordingSongGlobal()) {
-        addRecordedNoteGlobal(note);
+function Piano() {
+  const pianoRef = useRef<HTMLDivElement>(null);
+  const { current: keyDownMap } = useRef(new Map<string, boolean>());
+  const { current: noteElements } = useRef(new Map<string, HTMLElement>());
+  const { current: dragInfo } = useRef<DragInfo>({
+    scrollLeft: 0,
+    mouseX: 0,
+  });
+  const { isRecording, isSustainOn, toggleSustainGlobal, addRecordedNoteGlobal } = useGlobalStore();
+
+  /* 
+      Draggable Piano Logic - Start
+  */
+  const mouseDownHandler = (event: any) => {
+    if (event.shiftKey) {
+      if (pianoRef.current) {
+        dragInfo.scrollLeft = pianoRef.current.scrollLeft;
+        pianoRef.current.style.cursor = "grabbing";
       }
-      keyDownMap.set(note, true);
+      dragInfo.mouseX = event.clientX;
+      window.addEventListener("mousemove", mouseMoveHandler);
+      window.addEventListener("mouseup", mouseUpHandler);
+    }
+  }
+  const mouseMoveHandler = (event: any) => {
+    if (event.shiftKey) {
+      const distanceX = event.clientX - dragInfo.mouseX;
+      if (pianoRef.current) {
+        pianoRef.current.scrollLeft = dragInfo.scrollLeft - distanceX;
+      }
+    }
+  }
+  const mouseUpHandler = () => {
+    if (pianoRef.current) {
+      pianoRef.current.style.cursor = "grab";
+    }
+    window.removeEventListener("mousemove", mouseMoveHandler);
+    window.removeEventListener("mouseup", mouseUpHandler);
+  }
+  /* 
+      Draggable Piano Logic - End
+  */
+
+  /*
+      Play Notes on Key Presses Logic - Start
+  */
+  const simulateKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      toggleSustainGlobal();
+      return;
+    }
+    const note = getNoteByKey(event.key);
+    if (note) {
+      if (!keyDownMap.get(note)) {
+        if (isRecording) {
+          addRecordedNoteGlobal(note);
+        }
+        keyDownMap.set(note, true);
+        let noteElement = noteElements.get(note);
+        if (!noteElement) {
+          noteElement = document.getElementById(note) || undefined;
+          if (noteElement) {
+            noteElements.set(note, noteElement);
+          }
+        }
+        noteElement?.classList.add("active");
+        playNote(note, isSustainOn);
+      }
+    }
+  };
+  const simulateKeyUp = (event: KeyboardEvent) => {
+    const note = getNoteByKey(event.key);
+    if (note) {
+      keyDownMap.set(note, false);
       let noteElement = noteElements.get(note);
       if (!noteElement) {
         noteElement = document.getElementById(note) || undefined;
@@ -76,39 +92,25 @@ const simulateKeyDown = (event: KeyboardEvent) => {
           noteElements.set(note, noteElement);
         }
       }
-      noteElement?.classList.add("active");
-      playNote(note);
+      noteElement?.classList.remove("active");
     }
-  }
-};
-const simulateKeyUp = (event: KeyboardEvent) => {
-  const note = getNoteByKey(event.key);
-  if (note) {
-    keyDownMap.set(note, false);
-    let noteElement = noteElements.get(note);
-    if (!noteElement) {
-      noteElement = document.getElementById(note) || undefined;
-      if (noteElement) {
-        noteElements.set(note, noteElement);
-      }
-    }
-    noteElement?.classList.remove("active");
-  }
-};
-window.addEventListener("keydown", simulateKeyDown);
-window.addEventListener("keyup", simulateKeyUp);
-/*
-    Play Notes on Key Presses Logic - End
-*/
+  };
 
-function Piano() {
   useEffect(() => {
     if (pianoRef.current) {
       if (!pianoRef.current.scrollLeft) {
         pianoRef.current.scrollLeft += 456;
       }
     }
-  });
+    window.addEventListener("keydown", simulateKeyDown);
+    window.addEventListener("keyup", simulateKeyUp);
+    return () => {
+      // Cleanup
+      window.removeEventListener("keydown", simulateKeyDown);
+      window.removeEventListener("keyup", simulateKeyUp);
+    };
+  }, []);
+
   return (
     <div className={styles.piano} ref={pianoRef} onMouseDown={mouseDownHandler}>
       {[1, 2, 3, 4, 5, 6, 7].map((interval, index) => {

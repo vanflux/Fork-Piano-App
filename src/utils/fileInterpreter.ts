@@ -1,15 +1,5 @@
 import { playNote } from "./audioHandler";
-import {
-  addRecordedNoteGlobal,
-  isRecordingSongGlobal,
-  isSongPausedGlobal,
-  setLastPlayedLineGlobal,
-  setLastSongSpeedGlobal,
-} from "./globals";
-
-function delay(milliseconds: number) {
-  return new Promise((resolve) => setTimeout(resolve, milliseconds));
-}
+import { delay } from "./functionts";
 
 enum Commands {
   WAIT = "@",
@@ -19,18 +9,45 @@ enum Commands {
 }
 
 export class PianoInterpreter {
-  private content: string;
-  private speed: number;
+  private content!: string;
+  private speed!: number;
   private defaultKeyDuration: number;
+  private isPaused = false;
+  private isRecording = false;
+  private isSustain = false;
+
+  public onLastPlayedLineChange?: (lastPlayedLine: number) => void;
+  public onLastSongSpeedChange?: (lastSongSpeed: number) => void;
+  public onAddRecordedNote?: (note: string, duration: number) => void;
 
   constructor(
     content: string,
     speed: number = 250,
     defaultKeyDuration: number = 1
   ) {
-    this.content = content.replace(/\n/g, "\r\n");
-    this.speed = speed;
+    this.setContent(content);
+    this.setSpeed(speed);
     this.defaultKeyDuration = defaultKeyDuration;
+  }
+
+  public setPaused(isPaused: boolean) {
+    this.isPaused = isPaused;
+  }
+
+  public setRecording(isRecording: boolean) {
+    this.isRecording = isRecording;
+  }
+
+  public setIsSustain(isSustain: boolean) {
+    this.isSustain = isSustain;
+  }
+
+  public setSpeed(speed: number) {
+    this.speed = speed;
+  }
+
+  public setContent(content: string) {
+    this.content = content.replace(/\n/g, "\r\n");
   }
 
   public async play(
@@ -44,8 +61,8 @@ export class PianoInterpreter {
         if (line.length === 0) {
           continue;
         }
-        if (isSongPausedGlobal()) {
-          setLastPlayedLineGlobal(i);
+        if (this.isPaused) {
+          this.onLastPlayedLineChange?.(i);
           return;
         }
         const splitted = line
@@ -68,7 +85,7 @@ export class PianoInterpreter {
               if (parts[0] === Commands.SPEED) {
                 if (parts[1]) {
                   this.speed = parseInt(parts[1]);
-                  setLastSongSpeedGlobal(this.speed);
+                  this.onLastSongSpeedChange?.(this.speed);
                 }
               } else if (parts[0] === Commands.WAIT) {
                 if (parts[1]) {
@@ -85,10 +102,10 @@ export class PianoInterpreter {
                   duration = parseInt(parts[1]);
                 }
                 // Plays the note sound.
-                playNote(note, duration);
+                playNote(note, this.isSustain, duration);
                 // Record the note if the user is recording.
-                if (isRecordingSongGlobal()) {
-                  addRecordedNoteGlobal(note, duration);
+                if (this.isRecording) {
+                  this.onAddRecordedNote?.(note, duration);
                 }
                 // Animates the keys.
                 document.getElementById(note)?.classList.add("active");

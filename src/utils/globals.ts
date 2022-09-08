@@ -1,108 +1,83 @@
-/*
-  Global variables.
-*/
-let globalInstrument = "acoustic_grand_piano";
-let globalSongName = "";
-let globalSongNotes = "";
-let globalSampleName = "";
+import create from "zustand";
 
-let isSustainOn = false;
-
-let isPaused = false;
-let lastPlayedLine = 0;
-let lastSongSpeed = 250;
-
-let isRecording = false;
-let recordedNotes: string[] = [];
-let lastRecordedNoteTime = 0;
 const MILLISECONDS_ERROR_MARGIN = 7;
 const SIMULTANEOUS_NOTES_MAX_TIME_DIFFERENCE = 10;
 
-export function getGlobalInstrument() {
-  return globalInstrument;
-}
-export function setGlobalInstrument(instrument: string) {
-  globalInstrument = instrument;
+export interface GlobalStore {
+  globalInstrument: string;
+  globalSongName: string;
+  globalSongNotes: string;
+  globalSampleName: string;
+
+  isSustainOn: boolean;
+
+  isPaused: boolean;
+  lastPlayedLine: number;
+  lastSongSpeed: number;
+
+  isRecording: boolean;
+  recordedNotes: string[];
+  lastRecordedNoteTime: number;
+  
+  setGlobalInstrument: (globalInstrument: string) => void;
+  setGlobalSongName: (globalSongName: string) => void;
+  setGlobalSongNotes: (globalSongNotes: string) => void;
+  setGlobalSampleName: (globalSampleName: string) => void;
+  toggleSustainGlobal: () => void;
+  setSongPausedGlobal: (isPaused: boolean) => void;
+  setLastPlayedLineGlobal: (lastPlayedLine: number) => void;
+  setLastSongSpeedGlobal: (speed: number) => void;
+  setRecordingSongGlobal: (isRecording: boolean) => void;
+  addRecordedNoteGlobal: (note: string, duration?: number) => void;
+  clearRecordedNotesGlobal: () => void;
 }
 
-export function getGlobalSongName() {
-  return globalSongName;
-}
-export function setGlobalSongName(songName: string) {
-  globalSongName = songName;
-}
+// TODO: Split this store into domain specific stores if possible!
+export const useGlobalStore = create<GlobalStore>((set, get) => ({
+  globalInstrument: "acoustic_grand_piano",
+  globalSongName: "",
+  globalSongNotes: "",
+  globalSampleName: "",
 
-export function getGlobalSongNotes() {
-  return globalSongNotes;
-}
-export function setGlobalSongNotes(songNotes: string) {
-  globalSongNotes = songNotes;
-}
+  isSustainOn: false,
 
-export function getGlobalSampleName() {
-  return globalSampleName;
-}
-export function setGlobalSampleName(sampleName: string) {
-  globalSampleName = sampleName;
-}
+  isPaused: false,
+  lastPlayedLine: 0,
+  lastSongSpeed: 250,
 
-export function isSustainOnGlobal() {
-  return isSustainOn;
-}
-export function toggleSustainGlobal() {
-  isSustainOn = !isSustainOn;
-}
+  isRecording: false,
+  recordedNotes: [] as string[],
+  lastRecordedNoteTime: 0,
 
-export function isSongPausedGlobal() {
-  return isPaused;
-}
-export function setSongPausedGlobal(value: boolean) {
-  isPaused = value;
-}
-
-export function getLastPlayedLineGlobal() {
-  return lastPlayedLine;
-}
-export function setLastPlayedLineGlobal(line: number) {
-  lastPlayedLine = line;
-}
-
-export function getLastSongSpeedGlobal() {
-  return lastSongSpeed;
-}
-export function setLastSongSpeedGlobal(speed: number) {
-  lastSongSpeed = speed;
-}
-
-export function isRecordingSongGlobal() {
-  return isRecording;
-}
-export function setRecordingSongGlobal(value: boolean) {
-  isRecording = value;
-}
-export function addRecordedNoteGlobal(note: string, duration?: number) {
-  const currentTime = performance.now();
-  const timeDifference =
-    currentTime - lastRecordedNoteTime - MILLISECONDS_ERROR_MARGIN;
-  if (!duration) {
-    duration = isSustainOn ? 100 : 1;
-  }
-  if (timeDifference > SIMULTANEOUS_NOTES_MAX_TIME_DIFFERENCE) {
-    if (recordedNotes.length === 0) {
-      recordedNotes.push("START", "(>> -1)", `(${note} ${duration})`);
-    } else {
-      recordedNotes.push(
-        `(@ ${Math.round(timeDifference)}) (${note} ${duration})`
-      );
+  setGlobalInstrument: (globalInstrument: string) => set({ globalInstrument }),
+  setGlobalSongName: (globalSongName: string) => set({ globalSongName }),
+  setGlobalSongNotes: (globalSongNotes: string) => set({ globalSongNotes }),
+  setGlobalSampleName: (globalSampleName: string) => set({ globalSampleName }),
+  toggleSustainGlobal: () => set({ isSustainOn: !get().isSustainOn }),
+  setSongPausedGlobal: (isPaused: boolean) => set({ isPaused }),
+  setLastPlayedLineGlobal: (lastPlayedLine: number) => set({ lastPlayedLine }),
+  setLastSongSpeedGlobal: (speed: number) => set({ lastSongSpeed: speed }),
+  setRecordingSongGlobal: (isRecording: boolean) => set({ isRecording }),
+  addRecordedNoteGlobal: (note: string, duration?: number) => {
+    const { lastRecordedNoteTime, isSustainOn, recordedNotes } = get();
+    const currentTime = Date.now();
+    const timeDifference =
+      currentTime - lastRecordedNoteTime - MILLISECONDS_ERROR_MARGIN;
+    if (!duration) {
+      duration = isSustainOn ? 100 : 1;
     }
-  } else {
-    recordedNotes[recordedNotes.length - 1] += ` (${note} ${duration})`;
-  }
-  lastRecordedNoteTime = currentTime;
-}
-export function getRecordedNotesGlobal() {
-  return [...recordedNotes];
-}
-export function clearRecordedNotesGlobal() {
-  recordedNotes = [];
-}
+    if (timeDifference > SIMULTANEOUS_NOTES_MAX_TIME_DIFFERENCE) {
+      if (recordedNotes.length === 0) {
+        recordedNotes.push("START", "(>> -1)", `(${note} ${duration})`);
+      } else {
+        recordedNotes.push(
+          `(@ ${Math.round(timeDifference)}) (${note} ${duration})`
+        );
+      }
+    } else {
+      recordedNotes[recordedNotes.length - 1] += ` (${note} ${duration})`;
+    }
+    set({ lastRecordedNoteTime: currentTime });
+  },
+  clearRecordedNotesGlobal: () => set({ recordedNotes: [] }),
+}));

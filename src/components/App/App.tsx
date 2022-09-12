@@ -24,6 +24,7 @@ import {
 } from "../../utils/globals";
 import samples from "../../assets/samples-as-code/samples";
 import Controls, { updatePlayPauseButton } from "../Controls/Controls";
+import Editor from "../Editor/Editor";
 
 function App() {
   const UPLOAD_FILE_INPUT_ID = "fileUpload";
@@ -57,7 +58,7 @@ function App() {
     <>
       <Controls />
       <Center>
-        <Piano />
+        {true ? <Editor /> : <Piano />}
         <MenuBox>
           <MenuOption
             title="Tutorial"
